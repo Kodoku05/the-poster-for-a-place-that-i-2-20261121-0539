@@ -1,9 +1,10 @@
 """Draw the fictional floating isle of Caelora. Offline and deterministic."""
 import math
 import os
+import random
 import sys
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageChops
 
 S = 3
 W = 1024
@@ -11,7 +12,7 @@ W = 1024
 def render():
     im = Image.new('RGB', (W*S, W*S))
     d = ImageDraw.Draw(im)
-    stops = [(0, (30, 35, 76)), (270, (70, 60, 111)), (520, (185, 116, 129)), (735, (246, 184, 126)), (1024, (245, 209, 160))]
+    stops = [(0, (126, 104, 172)), (270, (168, 132, 186)), (520, (219, 166, 170)), (735, (250, 200, 140)), (1024, (253, 224, 170))]
     for y in range(W*S):
         yy = y/S
         for (a, ca), (b, cb) in zip(stops, stops[1:]):
@@ -20,6 +21,11 @@ def render():
                 c = tuple(round(x+(z-x)*t) for x,z in zip(ca,cb))
                 d.line((0,y,W*S,y), fill=c)
                 break
+    # Faint stars and sparkles in the violet upper sky, kept clear of the title.
+    for x, y in [(60, 60), (130, 90), (950, 55), (905, 110), (70, 300), (975, 180), (60, 470), (980, 420), (330, 60), (700, 55), (500, 90), (860, 150), (180, 70), (760, 95)]:
+        d.ellipse((round((x-1.5)*S), round((y-1.5)*S), round((x+1.5)*S), round((y+1.5)*S)), fill='#fff3d0')
+    for x, y, r in [(110, 140, 7), (930, 200, 8), (60, 220, 6), (965, 330, 7), (250, 80, 6), (820, 70, 7), (420, 55, 5), (90, 380, 5)]:
+        d.polygon([(round(px*S), round(py*S)) for px, py in [(x, y-r), (x+2, y-2), (x+r, y), (x+2, y+2), (x, y+r), (x-2, y+2), (x-r, y), (x-2, y-2)]], fill='#ffe9ae')
     def poly(points, fill):
         d.polygon([(round(x*S), round(y*S)) for x,y in points], fill=fill)
     def line(points, fill, width=1):
@@ -43,17 +49,39 @@ def render():
     glow=Image.new('RGBA', im.size)
     gd=ImageDraw.Draw(glow)
     for r in range(240,129,-3):
-        gd.ellipse(((671-r)*S,(423-r)*S,(671+r)*S,(423+r)*S),fill=(255,205,137,2))
+        gd.ellipse(((671-r)*S,(423-r)*S,(671+r)*S,(423+r)*S),fill=(255,196,112,3))
     glow=glow.filter(ImageFilter.GaussianBlur(18*S))
     im=Image.alpha_composite(im.convert('RGBA'),glow).convert('RGB'); d=ImageDraw.Draw(im)
+    # Faint golden rays fan out from the low sun.
+    rays=Image.new('RGBA', im.size)
+    rd=ImageDraw.Draw(rays)
+    for k in range(12):
+        a=math.radians(k*30+15)
+        b=a+math.radians(2.2)
+        rd.polygon([(671*S,423*S),(round((671+430*math.cos(a))*S),round((423+430*math.sin(a))*S)),(round((671+430*math.cos(b))*S),round((423+430*math.sin(b))*S))],fill=(255,214,140,10))
+    rays=rays.filter(ImageFilter.GaussianBlur(6*S))
+    im=Image.alpha_composite(im.convert('RGBA'),rays).convert('RGB'); d=ImageDraw.Draw(im)
     ellipse((537,289,805,557),'#ffdc9c')
     # Long, quiet wisps across the evening sky.
-    path((72,399),[(175,382,209,388,277,396),(206,394,137,405,72,399)],'#b58b9d')
-    path((780,329),[(838,314,910,323,955,316),(916,337,831,335,780,329)],'#ba929e')
-    path((81,565),[(183,545,221,563,286,551),(238,578,144,574,81,565)],'#e6af9f')
+    path((72,399),[(175,382,209,388,277,396),(206,394,137,405,72,399)],'#cfa6b8')
+    path((780,329),[(838,314,910,323,955,316),(916,337,831,335,780,329)],'#d2acb6')
+    path((81,565),[(183,545,221,563,286,551),(238,578,144,574,81,565)],'#f2c6b0')
+    # Small floating islets drift far behind the main isle.
+    for bx, by, sc in [(110, 330, 1.0), (880, 230, 0.85), (955, 430, 0.6)]:
+        poly([(bx-42*sc, by), (bx+42*sc, by), (bx+18*sc, by+34*sc), (bx, by+52*sc), (bx-18*sc, by+34*sc)], '#7d6673')
+        poly([(bx-42*sc, by), (bx+42*sc, by), (bx+30*sc, by-8*sc), (bx-30*sc, by-8*sc)], '#9aa87a')
+        poly([(bx-8*sc, by-8*sc), (bx+8*sc, by-8*sc), (bx, by-26*sc)], '#6f8563')
+    # A small balloon crosses the upper sky, with a tiny one far behind it.
+    ellipse((860, 292, 908, 354), '#8a63a8')
+    ellipse((868, 300, 884, 330), '#a985c4')
+    line([(872, 354), (868, 366)], '#6b4f3a', 1)
+    line([(896, 354), (900, 366)], '#6b4f3a', 1)
+    poly([(866, 366), (902, 366), (899, 378), (869, 378)], '#a9805a')
+    ellipse((70, 430, 92, 458), '#9a7ab8')
+    poly([(76, 458), (86, 458), (85, 466), (77, 466)], '#a9805a')
     # Distant cloudbanks, giving the isle a high-altitude setting.
-    path((0,704),[(72,672,100,699,154,684),(182,640,242,661,269,681),(346,648,371,687,424,692),(509,661,560,691,622,698),(680,663,740,680,777,685),(840,638,914,675,932,682),(971,668,1004,681,1024,686),(1024,1024),(0,1024)],'#d9b7b0')
-    path((0,740),[(90,700,134,739,207,717),(260,682,324,722,348,733),(409,702,449,726,486,738),(593,701,632,722,686,738),(749,701,807,739,838,730),(915,688,967,707,1024,724),(1024,1024),(0,1024)],'#eac6b0')
+    path((0,704),[(72,672,100,699,154,684),(182,640,242,661,269,681),(346,648,371,687,424,692),(509,661,560,691,622,698),(680,663,740,680,777,685),(840,638,914,675,932,682),(971,668,1004,681,1024,686),(1024,1024),(0,1024)],'#e7c7bd')
+    path((0,740),[(90,700,134,739,207,717),(260,682,324,722,348,733),(409,702,449,726,486,738),(593,701,632,722,686,738),(749,701,807,739,838,730),(915,688,967,707,1024,724),(1024,1024),(0,1024)],'#f3d4bb')
     # The underside is a single suspended mountain, with broad lithic facets.
     poly([(284,509),(353,494),(471,490),(586,484),(740,482),(818,503),(792,550),(738,569),(720,624),(672,650),(624,706),(594,748),(563,709),(517,687),(489,638),(429,624),(391,586),(334,568)],'#65575d')
     poly([(284,509),(429,526),(465,586),(489,638),(391,586),(334,568)],'#9b7467')
@@ -70,6 +98,10 @@ def render():
     poly([(548,565),(586,569),(640,552),(637,559),(586,578),(546,573)],'#70616a')
     poly([(723,570),(761,551),(758,558),(719,580)],'#d0a27c')
     poly([(534,625),(559,642),(591,647),(590,653),(555,648),(536,633)],'#8a7070')
+    # Fine facet seams give the cliff a worked-stone texture.
+    line([(429, 526), (465, 586), (489, 638)], '#54474f', 1)
+    line([(547, 539), (526, 614), (563, 709)], '#4a4048', 1)
+    line([(657, 531), (632, 608), (624, 706)], '#a98a72', 1)
     # Rounded turf rim and the gold meadows above it.
     path((284,509),[(320,477,383,470,445,466),(487,446,538,446,579,451),(644,438,699,448,742,460),(774,472,811,482,818,503),(771,531,715,536,657,531),(586,552,495,541,429,526),(365,531,313,522,284,509)],'#b5b46b')
     path((284,509),[(335,487,401,479,451,480),(518,463,566,470,608,461),(681,452,752,478,795,493),(721,482,674,491,615,504),(541,510,477,498,421,512),(358,519,318,514,284,509)],'#708a6c')
@@ -77,12 +109,20 @@ def render():
     path((446,513),[(504,497,576,502,629,485),(671,472,708,474,747,482),(677,480,650,498,604,507),(548,524,504,522,446,513)],'#ece0a1')
     # A footpath curls toward the solitary lighthouse.
     path((505,482),[(563,474,567,492,628,483),(668,476,696,469,724,463),(703,478,666,486,628,490),(562,499,558,480,505,486)],'#f1dfa7')
+    for sx, sy in [(520, 486), (560, 484), (600, 482), (645, 480), (690, 474)]:
+        ellipse((sx-4, sy-2, sx+4, sy+2), '#e8d39a')
+    # Small trees dot the meadow.
+    for tx, ty, tr in [(350, 478, 11), (610, 462, 9), (660, 472, 12), (770, 478, 10)]:
+        d.rectangle((round((tx-2)*S), round((ty-6)*S), round((tx+2)*S), round(ty*S)), fill='#6b4f3a')
+        ellipse((tx-tr, ty-6-2*tr, tx+tr, ty-6), '#5d7a52')
+        ellipse((tx-tr+4, ty-6-2*tr+3, tx+tr-2, ty-6-4), '#7d9a68')
     # A handful of small, sunlit houses, nestled into the meadow.
     for x,y,w,h in [(459,464,26,21),(491,457,23,23),(521,464,27,21)]:
         poly([(x,y),(x+w,y),(x+w,y+h),(x,y+h)],'#f8e5c0')
         poly([(x+w,y),(x+w+8,y-6),(x+w+8,y+h-5),(x+w,y+h)],'#bcae95')
         poly([(x-3,y),(x+w/2,y-12),(x+w+10,y-6),(x+w,y+2)],'#805d61')
         poly([(x+11,y+h-10),(x+16,y+h-10),(x+16,y+h),(x+11,y+h)],'#666575')
+        d.rectangle((round((x+4)*S), round((y+5)*S), round((x+9)*S), round((y+11)*S)), fill='#ffd98a')
     # Lighthouse on the bright outer rim.
     poly([(714,463),(744,463),(739,409),(719,409)],'#fff0cb')
     poly([(733,411),(739,409),(744,463),(735,463)],'#d9bc9a')
@@ -95,11 +135,21 @@ def render():
     line([(714,408),(714,413),(744,413),(744,408)],'#e4caa5',1)
     poly([(726,453),(732,453),(732,463),(726,463)],'#625d68')
     line([(729,388),(729,383)],'#504c5e',1)
+    # A soft beam sweeps from the lamp into the violet sky.
+    beam=Image.new('RGBA', im.size)
+    bd=ImageDraw.Draw(beam)
+    bd.polygon([(729*S, 400*S), (612*S, 252*S), (646*S, 288*S)], fill=(255, 240, 200, 26))
+    bd.ellipse(((729-20)*S, (404-20)*S, (729+20)*S, (404+20)*S), fill=(255, 236, 170, 40))
+    beam=beam.filter(ImageFilter.GaussianBlur(6*S))
+    im=Image.alpha_composite(im.convert('RGBA'),beam).convert('RGB'); d=ImageDraw.Draw(im)
     # Water crosses the lip and falls into the lower sea of clouds.
     path((396,506),[(408,505,424,507,435,511),(429,540,430,568,434,598),(433,646,420,681,429,744),(417,758,400,761,389,747),(406,687,398,649,406,597),(408,553,398,535,396,506)],'#91c8cf')
     path((405,508),[(414,507,421,510,425,511),(416,556,426,578,421,613),(414,663,418,699,409,748),(403,751,399,751,397,746),(412,692,404,650,413,610),(417,557,404,539,405,508)],'#eef0d7')
     line([(428,531),(425,562),(430,596),(426,631)],'#d3e5d6',2)
     line([(402,568),(400,615),(403,656),(398,702)],'#c4ddd6',2)
+    line([(414,520),(412,560),(415,600),(411,640),(414,680)],'#fff3c9',2)
+    for sx, sy in [(408, 700), (422, 715), (400, 730)]:
+        d.ellipse((round((sx-2)*S), round((sy-2)*S), round((sx+2)*S), round((sy+2)*S)), fill='#fff8dc')
     # The torrent frays into ribbons, then dissolves into sunlit spray.
     path((399,691),[(399,723,389,744,376,761),(396,758,407,743,409,721),(405,708,405,700,399,691)],'#d8e6d5')
     path((421,690),[(421,721,432,738,451,749),(439,756,426,747,418,730),(415,717,417,699,421,690)],'#c4dbd1')
@@ -116,8 +166,17 @@ def render():
     path((0,852),[(61,826,105,851,140,859),(177,816,251,824,279,856),(344,826,394,845,418,869),(474,841,529,852,561,883),(611,853,673,851,714,873),(745,839,795,843,828,866),(900,832,975,840,1024,858),(1024,1024),(0,1024)],'#eabca0')
     path((0,901),[(54,859,117,876,145,902),(197,892,218,909,247,927),(293,875,368,884,396,914),(447,894,497,908,519,931),(573,895,623,902,653,923),(713,882,765,900,797,919),(850,876,909,891,936,911),(977,886,1004,888,1024,896),(1024,1024),(0,1024)],'#ffe5b8')
     path((0,970),[(75,940,114,956,150,971),(214,940,277,956,304,980),(366,954,420,971,446,986),(513,949,576,974,612,988),(684,953,741,975,781,984),(857,951,927,961,1024,973),(1024,1024),(0,1024)],'#c4c4ac')
+    # A tiny sailboat drifts on the sea of clouds.
+    poly([(172, 852), (216, 852), (206, 866), (182, 866)], '#5a4a68')
+    line([(194, 852), (194, 822)], '#5a4a68', 2)
+    poly([(196, 824), (196, 850), (220, 850)], '#f5e6c0')
+    poly([(192, 828), (192, 850), (174, 850)], '#e8d3a8')
+    # Soft puffs add a second layer to the cloud sea.
+    for cx, cy, cr in [(700, 905, 34), (330, 950, 28), (880, 955, 26)]:
+        ellipse((cx-cr, cy-cr//2, cx+cr, cy+cr//2), '#ffe9c4')
+        ellipse((cx-cr+8, cy-cr//2+6, cx+cr-8, cy+cr//2-2), '#f7d9ae')
     # Birds, in two small loose groups, kept clear of the typography.
-    for x,y,z in [(236,345,11),(268,357,8),(294,336,6),(844,577,8),(868,566,6)]:
+    for x,y,z in [(236,345,11),(268,357,8),(294,336,6),(844,577,8),(868,566,6),(150,280,7),(185,268,6),(920,360,8),(950,345,6),(620,300,6),(660,315,5)]:
         pts=[]
         for j in range(25):
             t=j/24
@@ -142,6 +201,16 @@ def render():
     # Fine double rules finish the print.
     d.rectangle((27*S,27*S,997*S,997*S),outline='#f5deba',width=2*S)
     d.rectangle((35*S,35*S,989*S,989*S),outline='#e7cba8',width=S)
+    # Small gold diamonds mark the inner frame's corners.
+    for cx, cy in [(35, 35), (989, 35), (35, 989), (989, 989)]:
+        d.polygon([(cx*S, (cy-9)*S), ((cx+9)*S, cy*S), (cx*S, (cy+9)*S), ((cx-9)*S, cy*S)], fill='#f5deba')
+    # A whisper of film grain gives the print a vintage finish.
+    rng=random.Random(20261121)
+    noise=Image.new('L',(192,192))
+    noise.putdata([rng.randint(104,152) for _ in range(192*192)])
+    noise=noise.resize(im.size,Image.Resampling.BILINEAR)
+    grain=ImageChops.soft_light(im.convert('RGB'),Image.merge('RGB',(noise,noise,noise)))
+    im=Image.blend(im.convert('RGB'),grain,0.35)
     im=im.resize((W,W),Image.Resampling.LANCZOS)
     out=Path(os.environ.get('MAKEFUN_OUTPUT_DIR','/output'))
     out.mkdir(parents=True,exist_ok=True)
